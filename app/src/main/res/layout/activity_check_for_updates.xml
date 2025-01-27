@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+
+    <ProgressBar
+        android:id="@+id/update_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:max="100"
+        android:progress="0"
+        style="?android:attr/progressBarStyleHorizontal" />
+
+    <TextView
+        android:id="@+id/update_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="当前版本："
+        android:textSize="18sp" />
+    <!-- 其他 UI 元素可以在这里添加 -->
+    <TextView
+        android:id="@+id/latest_version"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="可用版本"
+        android:textSize="18sp" />
+
+    <!--    不可见-->
+    <Button
+        android:id="@+id/start_updates"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:text="开始更新"
+        tools:ignore="HardcodedText" />
+
+</LinearLayout> 
