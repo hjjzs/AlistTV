@@ -96,6 +96,11 @@ public class MainActivity extends FragmentActivity {
             Intent intent = new Intent(this, SettingsActivity.class);
             startActivity(intent);
         }));
+        // 刷新目录
+        menuAdapter.add(new MenuItem("刷新", R.drawable.refresh, () -> {
+            showLoading();
+            loadContent(currentPath, true);
+        }));
         // 可以在这里添加更多菜单项
         menuAdapter.add(new MenuItem("关于", R.drawable.about, () -> {
             Intent intent = new Intent(this, AboutActivity.class);
@@ -141,6 +146,11 @@ public class MainActivity extends FragmentActivity {
             }
             return false;
         });
+    }
+
+    private void refreshContent() {
+        showLoading();
+
     }
 
     private void setupGrid() {
@@ -265,7 +275,7 @@ public class MainActivity extends FragmentActivity {
             updateTitle();
             // 传入要恢复的位置
             Integer position = pathPositionMap.get(currentPath);
-            loadContent(currentPath, position);
+            loadContent(currentPath, position, false);
             // 清理不需要的位置记录
             pathPositionMap.remove(currentPath);
         }
@@ -292,7 +302,7 @@ public class MainActivity extends FragmentActivity {
                             String token = loginResponse.data.token;
                             if (token != null && !token.isEmpty()) {
                                 ApiClient.setToken(token);
-                                loadContent(currentPath);
+                                loadContent(currentPath, false);
                             } else {
                                 Log.e(TAG, "No token in response data");
                                 showError("登录失败：未获取到认证信息");
@@ -319,17 +329,18 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
-    private void loadContent(String path) {
-        loadContent(path, 0);
+    private void loadContent(String path, boolean refresh) {
+        loadContent(path, 0, refresh);
     }
 
-    private void loadContent(String path, Integer position) {
+    private void loadContent(String path, Integer position, boolean refresh) {
         // 重置分页状态
         currentPage = 1;
         hasMoreData = true;
 
         AlistService.ListRequest request = new AlistService.ListRequest(path);
         request.page = currentPage;
+        request.refresh = refresh;
         alistService.listFiles(request).enqueue(new Callback<AlistResponse>() {
             @Override
             public void onResponse(Call<AlistResponse> call, Response<AlistResponse> response) {
