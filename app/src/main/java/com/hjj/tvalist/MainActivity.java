@@ -28,21 +28,12 @@ import java.util.Stack;
 import java.util.Map;
 import java.util.HashMap;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.view.KeyEvent;
 import com.hjj.tvalist.model.MenuItem;
 import com.hjj.tvalist.presenter.MenuItemPresenter;
 import androidx.recyclerview.widget.RecyclerView;
-import android.app.AlertDialog;
-import android.os.AsyncTask;
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import org.json.JSONObject;
+
 
 public class MainActivity extends FragmentActivity {
     private static final String TAG = "MainActivity";
@@ -53,12 +44,11 @@ public class MainActivity extends FragmentActivity {
     private String currentPath = "/";
     private Stack<String> pathHistory = new Stack<>();
     private Map<String, Integer> pathPositionMap = new HashMap<>();
-    private ProgressBar loadingIndicator;
     private int currentPage = 1;
     private boolean isLoading = false;
     private boolean hasMoreData = true;
-    private String version = "v1.0.0";
-    private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
+
+    private ProgressBar loadingIndicator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,17 +102,15 @@ public class MainActivity extends FragmentActivity {
             startActivity(intent);
         }));
         // 检查更新
-        menuAdapter.add(new MenuItem("检查更新", R.drawable.about, () -> {
-            checkForUpdates();
+        menuAdapter.add(new MenuItem("检查更新", R.drawable.update, () -> {
+            Intent intent = new Intent(this, CheckForUpdatesActivity.class);
+            startActivity(intent);
         }));
-
-
 
         // 退出
-        menuAdapter.add(new MenuItem("退出", R.drawable.about, () -> {
+        menuAdapter.add(new MenuItem("退出", R.drawable.exit, () -> {
             finish();
         }));
-
 
         menuGrid.setAdapter(new ItemBridgeAdapter(menuAdapter));
 
@@ -486,100 +474,4 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
-    // 添加检查更新的方法
-    private void checkForUpdates() {
-        new CheckForUpdatesTask().execute();
-    }
-
-    private class CheckForUpdatesTask extends AsyncTask<Void, Void, String> {
-        @Override
-        protected String doInBackground(Void... voids) {
-            try {
-                URL url = new URL(GITHUB_API_URL);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-                connection.connect();
-
-                if (connection.getResponseCode() == 200) {
-                    InputStream inputStream = new BufferedInputStream(connection.getInputStream());
-                    StringBuilder response = new StringBuilder();
-                    int byteRead;
-                    while ((byteRead = inputStream.read()) != -1) {
-                        response.append((char) byteRead);
-                    }
-                    JSONObject jsonObject = new JSONObject(response.toString());
-                    return jsonObject.getString("tag_name"); // 获取最新版本标签
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(String latestVersion) {
-            if (latestVersion != null && !latestVersion.equals(version)) {
-                // 版本不一致，提示用户下载
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("检查更新")
-                        .setMessage("发现新版本 " + latestVersion + "，是否下载？")
-                        .setPositiveButton("下载", (dialog, which) -> {
-                            downloadApk("https://github.com/hjjzs/AlistTV/releases/download/" + latestVersion + "/app-debug.apk");
-                        })
-                        .setNegativeButton("取消", null)
-                        .show();
-            } else {
-                Toast.makeText(MainActivity.this, "当前已是最新版本", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void downloadApk(String apkUrl) {
-        new DownloadApkTask().execute(apkUrl);
-    }
-
-    private class DownloadApkTask extends AsyncTask<String, Void, String> {
-        @Override
-        protected String doInBackground(String... urls) {
-            String apkPath = getExternalFilesDir(null) + "/app-debug.apk"; // APK 保存路径
-            try {
-                URL url = new URL(urls[0]);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.connect();
-
-                if (connection.getResponseCode() == 200) {
-                    InputStream inputStream = new BufferedInputStream(connection.getInputStream());
-                    FileOutputStream fileOutputStream = new FileOutputStream(apkPath);
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        fileOutputStream.write(buffer, 0, bytesRead);
-                    }
-                    fileOutputStream.close();
-                    inputStream.close();
-                    return apkPath; // 返回 APK 路径
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(String apkPath) {
-            if (apkPath != null) {
-                installApk(apkPath);
-            } else {
-                Toast.makeText(MainActivity.this, "下载失败", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void installApk(String apkPath) {
-        File apkFile = new File(apkPath);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(Uri.fromFile(apkFile), "application/vnd.android.package-archive");
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
-    }
 } 
