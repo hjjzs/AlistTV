@@ -34,6 +34,15 @@ import android.view.KeyEvent;
 import com.hjj.tvalist.model.MenuItem;
 import com.hjj.tvalist.presenter.MenuItemPresenter;
 import androidx.recyclerview.widget.RecyclerView;
+import android.app.AlertDialog;
+import android.os.AsyncTask;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import org.json.JSONObject;
 
 public class MainActivity extends FragmentActivity {
     private static final String TAG = "MainActivity";
@@ -48,6 +57,8 @@ public class MainActivity extends FragmentActivity {
     private int currentPage = 1;
     private boolean isLoading = false;
     private boolean hasMoreData = true;
+    private String version = "v1.0.0";
+    private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +77,7 @@ public class MainActivity extends FragmentActivity {
     private void setupUI() {
         titleView.setText(getString(R.string.app_name));
         alistService = ApiClient.getClient().create(AlistService.class);
-        
+
         // 添加返回键处理
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -78,10 +89,10 @@ public class MainActivity extends FragmentActivity {
                 }
             }
         });
-        
+
         // 设置菜单
         setupMenu();
-        
+
         // 初始化 FileUtils
         FileUtils.init(this);
     }
@@ -89,20 +100,32 @@ public class MainActivity extends FragmentActivity {
     private void setupMenu() {
         VerticalGridView menuGrid = findViewById(R.id.menu_grid);
         ArrayObjectAdapter menuAdapter = new ArrayObjectAdapter(new MenuItemPresenter());
-        
+
         // 添加菜单项
         menuAdapter.add(new MenuItem("设置", R.drawable.ic_settings, () -> {
             Intent intent = new Intent(this, SettingsActivity.class);
             startActivity(intent);
         }));
         // 可以在这里添加更多菜单项
-         menuAdapter.add(new MenuItem("关于", R.drawable.about, () -> {
+        menuAdapter.add(new MenuItem("关于", R.drawable.about, () -> {
             Intent intent = new Intent(this, AboutActivity.class);
             startActivity(intent);
         }));
-        
+        // 检查更新
+        menuAdapter.add(new MenuItem("检查更新", R.drawable.about, () -> {
+            checkForUpdates();
+        }));
+
+
+
+        // 退出
+        menuAdapter.add(new MenuItem("退出", R.drawable.about, () -> {
+            finish();
+        }));
+
+
         menuGrid.setAdapter(new ItemBridgeAdapter(menuAdapter));
-        
+
         // 添加网格视图的焦点监听
         gridView.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -135,26 +158,26 @@ public class MainActivity extends FragmentActivity {
     private void setupGrid() {
         VerticalGridPresenter presenter = new VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE);
         presenter.setNumberOfColumns(3);
-        
+
         FileItemPresenter fileItemPresenter = new FileItemPresenter();
         fileItemPresenter.setOnItemClickListener(this::onItemClick);
-        
+
         adapter = new ArrayObjectAdapter(fileItemPresenter);
         ItemBridgeAdapter bridgeAdapter = new ItemBridgeAdapter(adapter);
         gridView.setAdapter(bridgeAdapter);
-        
+
         // 修改滚动监听，避免类型转换错误
         gridView.setOnScrollListener(new VerticalGridView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
-                
+
                 // 当停止滚动时
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     // 获取最后一个可见项的位置
                     int lastVisibleItem = gridView.getChildCount() > 0 ? gridView.getSelectedPosition() : -1;
                     int totalItemCount = adapter.size();
-                    
+
                     // 当滚动到倒数第6个项目时，加载更多
                     if (lastVisibleItem >= totalItemCount - 6 && !isLoading && hasMoreData) {
                         loadMoreContent();
@@ -178,12 +201,12 @@ public class MainActivity extends FragmentActivity {
         if (content.is_dir) {
             // 点击目录时显示加载动画
             showLoading();
-            
+
             // 先保存当前路径，等确认新目录不为空时再保存位置
-            String newPath = currentPath.equals("/") ? 
-                "/" + content.name : 
-                currentPath + "/" + content.name;
-            
+            String newPath = currentPath.equals("/") ?
+                    "/" + content.name :
+                    currentPath + "/" + content.name;
+
             // 检查新目录内容
             checkAndLoadDirectory(newPath, gridView.getSelectedPosition());
         } else if (FileUtils.isVideoFile(content.name)) {
@@ -195,7 +218,7 @@ public class MainActivity extends FragmentActivity {
         // 重置分页状态
         currentPage = 1;
         hasMoreData = true;
-        
+
         AlistService.ListRequest request = new AlistService.ListRequest(newPath);
         request.page = currentPage;
         alistService.listFiles(request).enqueue(new Callback<AlistResponse>() {
@@ -203,21 +226,21 @@ public class MainActivity extends FragmentActivity {
             public void onResponse(Call<AlistResponse> call, Response<AlistResponse> response) {
                 if (response.isSuccessful()) {
                     AlistResponse alistResponse = response.body();
-                    if (alistResponse != null && alistResponse.code == 200 && 
-                        alistResponse.data != null && alistResponse.data.content != null && 
-                        !alistResponse.data.content.isEmpty()) {
-                        
+                    if (alistResponse != null && alistResponse.code == 200 &&
+                            alistResponse.data != null && alistResponse.data.content != null &&
+                            !alistResponse.data.content.isEmpty()) {
+
                         // 目录不为空，保存当前路径和位置
                         pathHistory.push(currentPath);
                         pathPositionMap.put(currentPath, currentPosition);
                         currentPath = newPath;
-                        
+
                         // 更新UI
                         adapter.clear();
                         adapter.addAll(0, alistResponse.data.content);
                         updateTitle();
 
-                        
+
                         // 设置焦点到第一个位置
                         runOnUiThread(() -> {
                             if (gridView.getChildCount() > 0) {
@@ -269,7 +292,7 @@ public class MainActivity extends FragmentActivity {
         SettingsManager settingsManager = new SettingsManager(this);
         String username = settingsManager.getUsername();
         String password = settingsManager.getPassword();
-        
+
         AlistService.LoginRequest loginRequest = new AlistService.LoginRequest(username, password);
         alistService.login(loginRequest).enqueue(new Callback<AlistResponse>() {
             @Override
@@ -316,7 +339,7 @@ public class MainActivity extends FragmentActivity {
         // 重置分页状态
         currentPage = 1;
         hasMoreData = true;
-        
+
         AlistService.ListRequest request = new AlistService.ListRequest(path);
         request.page = currentPage;
         alistService.listFiles(request).enqueue(new Callback<AlistResponse>() {
@@ -330,13 +353,13 @@ public class MainActivity extends FragmentActivity {
                                 adapter.clear();
                                 adapter.addAll(0, alistResponse.data.content);
                                 updateTitle();
-                                
+
                                 // 数据加载完成后，将焦点设置到指定位置
                                 runOnUiThread(() -> {
                                     if (gridView.getChildCount() > 0) {
                                         // 确保position不超过列表大小
-                                        int targetPosition = Math.min(position != null ? position : 0, 
-                                            adapter.size() - 1);
+                                        int targetPosition = Math.min(position != null ? position : 0,
+                                                adapter.size() - 1);
                                         gridView.setSelectedPosition(targetPosition);
                                     }
                                 });
@@ -372,9 +395,9 @@ public class MainActivity extends FragmentActivity {
     private void playVideoWithMXPlayer(AlistResponse.Content content) {
         // 构建请求体
         AlistService.GetRequest request = new AlistService.GetRequest(
-            currentPath.equals("/") ? "/" + content.name : currentPath + "/" + content.name
+                currentPath.equals("/") ? "/" + content.name : currentPath + "/" + content.name
         );
-        
+
         // 发起请求获取真实播放地址
         alistService.getFile(request).enqueue(new Callback<AlistResponse>() {
             @Override
@@ -403,10 +426,10 @@ public class MainActivity extends FragmentActivity {
         // 创建播放意图
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setDataAndType(Uri.parse(videoUrl), "video/*");
-        
+
         // 尝试使用MX Player Pro
         intent.setPackage("com.mxtech.videoplayer.pro");
-        
+
         try {
             startActivity(intent);
         } catch (Exception e) {
@@ -427,21 +450,21 @@ public class MainActivity extends FragmentActivity {
 
     private void loadMoreContent() {
         if (isLoading) return;
-        
+
         isLoading = true;
         currentPage++;
-        
+
         AlistService.ListRequest request = new AlistService.ListRequest(currentPath);
         request.page = currentPage;
-        
+
         alistService.listFiles(request).enqueue(new Callback<AlistResponse>() {
             @Override
             public void onResponse(Call<AlistResponse> call, Response<AlistResponse> response) {
                 if (response.isSuccessful()) {
                     AlistResponse alistResponse = response.body();
-                    if (alistResponse != null && alistResponse.code == 200 && 
-                        alistResponse.data != null && alistResponse.data.content != null) {
-                        
+                    if (alistResponse != null && alistResponse.code == 200 &&
+                            alistResponse.data != null && alistResponse.data.content != null) {
+
                         if (!alistResponse.data.content.isEmpty()) {
                             // 添加新数据到adapter
                             adapter.addAll(adapter.size(), alistResponse.data.content);
@@ -461,5 +484,102 @@ public class MainActivity extends FragmentActivity {
                 currentPage--; // 失败时恢复页码
             }
         });
+    }
+
+    // 添加检查更新的方法
+    private void checkForUpdates() {
+        new CheckForUpdatesTask().execute();
+    }
+
+    private class CheckForUpdatesTask extends AsyncTask<Void, Void, String> {
+        @Override
+        protected String doInBackground(Void... voids) {
+            try {
+                URL url = new URL(GITHUB_API_URL);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.connect();
+
+                if (connection.getResponseCode() == 200) {
+                    InputStream inputStream = new BufferedInputStream(connection.getInputStream());
+                    StringBuilder response = new StringBuilder();
+                    int byteRead;
+                    while ((byteRead = inputStream.read()) != -1) {
+                        response.append((char) byteRead);
+                    }
+                    JSONObject jsonObject = new JSONObject(response.toString());
+                    return jsonObject.getString("tag_name"); // 获取最新版本标签
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String latestVersion) {
+            if (latestVersion != null && !latestVersion.equals(version)) {
+                // 版本不一致，提示用户下载
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("检查更新")
+                        .setMessage("发现新版本 " + latestVersion + "，是否下载？")
+                        .setPositiveButton("下载", (dialog, which) -> {
+                            downloadApk("https://github.com/hjjzs/AlistTV/releases/download/" + latestVersion + "/app-debug.apk");
+                        })
+                        .setNegativeButton("取消", null)
+                        .show();
+            } else {
+                Toast.makeText(MainActivity.this, "当前已是最新版本", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void downloadApk(String apkUrl) {
+        new DownloadApkTask().execute(apkUrl);
+    }
+
+    private class DownloadApkTask extends AsyncTask<String, Void, String> {
+        @Override
+        protected String doInBackground(String... urls) {
+            String apkPath = getExternalFilesDir(null) + "/app-debug.apk"; // APK 保存路径
+            try {
+                URL url = new URL(urls[0]);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                if (connection.getResponseCode() == 200) {
+                    InputStream inputStream = new BufferedInputStream(connection.getInputStream());
+                    FileOutputStream fileOutputStream = new FileOutputStream(apkPath);
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        fileOutputStream.write(buffer, 0, bytesRead);
+                    }
+                    fileOutputStream.close();
+                    inputStream.close();
+                    return apkPath; // 返回 APK 路径
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String apkPath) {
+            if (apkPath != null) {
+                installApk(apkPath);
+            } else {
+                Toast.makeText(MainActivity.this, "下载失败", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void installApk(String apkPath) {
+        File apkFile = new File(apkPath);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(Uri.fromFile(apkFile), "application/vnd.android.package-archive");
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 } 
