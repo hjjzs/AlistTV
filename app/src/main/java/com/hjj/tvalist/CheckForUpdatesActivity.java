@@ -30,8 +30,7 @@ import java.net.URL;
 
 public class CheckForUpdatesActivity extends AppCompatActivity {
     private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
-    private String currentVersion = "v1.0.2"; // 当前版本
-    private TextView versionText;
+    private final String currentVersion = "v1.0.1"; // 当前版本
 
     // 可以用版本
     private TextView latestVersionText;
@@ -43,7 +42,7 @@ public class CheckForUpdatesActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_check_for_updates);
-        versionText = findViewById(R.id.update_status);
+        TextView versionText = findViewById(R.id.update_status);
         loadingIndicator = findViewById(R.id.update_indicator);
         latestVersionText = findViewById(R.id.latest_version);
         versionText.setText("当前版本: " + currentVersion);
@@ -80,6 +79,7 @@ public class CheckForUpdatesActivity extends AppCompatActivity {
             return null;
         }
 
+        @SuppressLint("SetTextI18n")
         @Override
         protected void onPostExecute(String latestVersion) {
             if (latestVersion != null && !latestVersion.equals(currentVersion)) {
@@ -87,19 +87,20 @@ public class CheckForUpdatesActivity extends AppCompatActivity {
                 // 显示下载按钮
                 findViewById(R.id.start_updates).setVisibility(View.VISIBLE);
                 findViewById(R.id.start_updates).setOnClickListener(v -> {
-                    downloadApk("https://github.com/hjjzs/AlistTV/releases/download/" + latestVersion + "/app-debug.apk");
+                    downloadApk("https://www.ghproxy.cn/https://github.com/hjjzs/AlistTV/releases/download/" + latestVersion + "/app-debug.apk");
                 });
 
                 // 版本不一致，提示用户下载
-//                new AlertDialog.Builder(CheckForUpdatesActivity.this)
-//                        .setTitle("检查更新")
-//                        .setMessage("发现新版本 " + latestVersion + "，是否下载？")
-//                        .setPositiveButton("下载", (dialog, which) -> {
-//                            downloadApk("https://github.com/hjjzs/AlistTV/releases/download/" + latestVersion + "/app-debug.apk");
-//                        })
-//                        .setNegativeButton("取消", null)
-//                        .show();
+                //  new AlertDialog.Builder(CheckForUpdatesActivity.this)
+                //          .setTitle("检查更新")
+                //          .setMessage("发现新版本 " + latestVersion + "，是否下载？")
+                //          .setPositiveButton("下载", (dialog, which) -> {
+                //              downloadApk("https://github.com/hjjzs/AlistTV/releases/download/" + latestVersion + "/app-debug.apk");
+                //          })
+                //          .setNegativeButton("取消", null)
+                //          .show();
             } else {
+                latestVersionText.setText("最新版本: " + currentVersion);
                 Toast.makeText(CheckForUpdatesActivity.this, "当前已是最新版本", Toast.LENGTH_SHORT).show();
             }
         }
@@ -196,8 +197,8 @@ public class CheckForUpdatesActivity extends AppCompatActivity {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         } catch (IOException e) {
-            e.printStackTrace();
             Toast.makeText(this, "安装失败", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
 } 
