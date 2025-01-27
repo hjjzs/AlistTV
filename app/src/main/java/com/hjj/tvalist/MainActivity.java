@@ -43,6 +43,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import org.json.JSONObject;
+import androidx.core.content.FileProvider;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 public class MainActivity extends FragmentActivity {
     private static final String TAG = "MainActivity";
@@ -57,7 +60,7 @@ public class MainActivity extends FragmentActivity {
     private int currentPage = 1;
     private boolean isLoading = false;
     private boolean hasMoreData = true;
-    private String version = "v1.0.0";
+    private String version = "v1.0.1";
     private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
 
     @Override
@@ -538,10 +541,9 @@ public class MainActivity extends FragmentActivity {
         new DownloadApkTask().execute(apkUrl);
     }
 
-    private class DownloadApkTask extends AsyncTask<String, Void, String> {
+    private class DownloadApkTask extends AsyncTask<String, Integer, byte[]> {
         @Override
-        protected String doInBackground(String... urls) {
-            String apkPath = getExternalFilesDir(null) + "/app-debug.apk"; // APK 保存路径
+        protected byte[] doInBackground(String... urls) {
             try {
                 URL url = new URL(urls[0]);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -549,15 +551,20 @@ public class MainActivity extends FragmentActivity {
 
                 if (connection.getResponseCode() == 200) {
                     InputStream inputStream = new BufferedInputStream(connection.getInputStream());
-                    FileOutputStream fileOutputStream = new FileOutputStream(apkPath);
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     byte[] buffer = new byte[1024];
                     int bytesRead;
+                    int totalBytesRead = 0;
+                    int contentLength = connection.getContentLength();
+
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        fileOutputStream.write(buffer, 0, bytesRead);
+                        outputStream.write(buffer, 0, bytesRead);
+                        totalBytesRead += bytesRead;
+                        publishProgress((int) ((totalBytesRead / (float) contentLength) * 100)); // 更新进度
                     }
-                    fileOutputStream.close();
+                    outputStream.close();
                     inputStream.close();
-                    return apkPath; // 返回 APK 路径
+                    return outputStream.toByteArray(); // 返回 APK 的字节数组
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -566,20 +573,47 @@ public class MainActivity extends FragmentActivity {
         }
 
         @Override
-        protected void onPostExecute(String apkPath) {
-            if (apkPath != null) {
-                installApk(apkPath);
+        protected void onPreExecute() {
+            super.onPreExecute();
+            // 显示进度条
+            loadingIndicator.setVisibility(View.VISIBLE);
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+            // 更新进度条
+            // 这里可以添加代码来更新 UI 进度条
+        }
+
+        @Override
+        protected void onPostExecute(byte[] apkData) {
+            loadingIndicator.setVisibility(View.GONE); // 隐藏进度条
+            if (apkData != null) {
+                installApk(apkData);
+                Toast.makeText(MainActivity.this, "下载成功", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(MainActivity.this, "下载失败", Toast.LENGTH_SHORT).show();
             }
         }
     }
 
-    private void installApk(String apkPath) {
-        File apkFile = new File(apkPath);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(Uri.fromFile(apkFile), "application/vnd.android.package-archive");
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+    private void installApk(byte[] apkData) {
+        try {
+            File apkFile = new File(getCacheDir(), "app-debug.apk"); // 使用缓存目录
+            FileOutputStream fos = new FileOutputStream(apkFile);
+            fos.write(apkData);
+            fos.close();
+
+            Uri apkUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".fileprovider", apkFile);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); // 允许临时访问
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "安装失败", Toast.LENGTH_SHORT).show();
+        }
     }
 } 
