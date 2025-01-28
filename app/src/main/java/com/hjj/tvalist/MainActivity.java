@@ -54,6 +54,12 @@ public class MainActivity extends FragmentActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        
+        // 可以在代码中动态设置背景透明度
+        View backgroundImage = findViewById(R.id.background_image);
+        if (backgroundImage != null) {
+            backgroundImage.setAlpha(0.3f);  // 设置透明度
+        }
 
         titleView = findViewById(R.id.title_view);
         gridView = findViewById(R.id.grid);

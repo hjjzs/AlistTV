@@ -30,7 +30,7 @@ import java.net.URL;
 
 public class CheckForUpdatesActivity extends AppCompatActivity {
     private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
-    private final String currentVersion = "v1.0.4"; // 当前版本
+    private final String currentVersion = "v1.0.7"; // 当前版本
 
     // 可以用版本
     private TextView latestVersionText;
@@ -107,15 +107,16 @@ public class CheckForUpdatesActivity extends AppCompatActivity {
     }
 
     private void downloadApk(String apkUrl) {
-        // 检查并请求安装未知来源应用的权限
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!getPackageManager().canRequestPackageInstalls()) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
-                startActivityForResult(intent, 100); // 请求权限
-                return;
-            }
-        }
-        new DownloadApkTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, apkUrl);
+        // 显示提示对话框
+        new AlertDialog.Builder(this)
+            .setTitle("安装提示")
+            .setMessage("请确保已在系统设置中允许安装未知来源应用")
+            .setPositiveButton("继续", (dialog, which) -> {
+                // 开始下载
+                new DownloadApkTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, apkUrl);
+            })
+            .setNegativeButton("取消", null)
+            .show();
     }
 
     private class DownloadApkTask extends AsyncTask<String, Integer, byte[]> {
