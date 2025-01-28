@@ -30,7 +30,7 @@ import java.net.URL;
 
 public class CheckForUpdatesActivity extends AppCompatActivity {
     private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
-    private final String currentVersion = "v1.0.7"; // 当前版本
+    private final String currentVersion = "v1.0.6"; // 当前版本
 
     // 可以用版本
     private TextView latestVersionText;
@@ -46,6 +46,9 @@ public class CheckForUpdatesActivity extends AppCompatActivity {
         loadingIndicator = findViewById(R.id.update_indicator);
         latestVersionText = findViewById(R.id.latest_version);
         versionText.setText("当前版本: " + currentVersion);
+
+        // 设置背景图片半透明
+        findViewById(R.id.check_for_updates).getBackground().setAlpha(240);
 
         checkForUpdates();
     }

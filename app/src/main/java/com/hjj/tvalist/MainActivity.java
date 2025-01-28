@@ -58,7 +58,7 @@ public class MainActivity extends FragmentActivity {
         // 可以在代码中动态设置背景透明度
         View backgroundImage = findViewById(R.id.background_image);
         if (backgroundImage != null) {
-            backgroundImage.setAlpha(0.3f);  // 设置透明度
+            backgroundImage.setAlpha(0.5f);  // 设置透明度
         }
 
         titleView = findViewById(R.id.title_view);
