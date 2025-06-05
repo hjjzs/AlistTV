@@ -30,7 +30,7 @@ import java.net.URL;
 
 public class CheckForUpdatesActivity extends AppCompatActivity {
     private static final String GITHUB_API_URL = "https://api.github.com/repos/hjjzs/AlistTV/releases/latest";
-    private final String currentVersion = "v1.0.7"; // 当前版本
+    private final String currentVersion = "v1.0.8"; // 当前版本
 
     // 可以用版本
     private TextView latestVersionText;

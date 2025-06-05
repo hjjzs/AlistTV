@@ -64,10 +64,10 @@ public class MainActivity extends FragmentActivity {
         titleView = findViewById(R.id.title_view);
         gridView = findViewById(R.id.grid);
         loadingIndicator = findViewById(R.id.loading_indicator);
-
+        login();
         setupUI();
         setupGrid();
-        login();  // 先登录，再加载内容
+          // 先登录，再加载内容
     }
 
     private void setupUI() {

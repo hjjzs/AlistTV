@@ -26,11 +26,11 @@ public class SettingsManager {
     }
     
     public String getUsername() {
-        return prefs.getString(KEY_USERNAME, "tv");
+        return prefs.getString(KEY_USERNAME, "");
     }
     
     public String getPassword() {
-        return prefs.getString(KEY_PASSWORD, "Abc@1234!");
+        return prefs.getString(KEY_PASSWORD, "");
     }
     
     public void saveVideoExtensions(Set<String> extensions) {
